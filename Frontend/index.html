@@ -1,32 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ranked Choice Voting</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 10px;
-    }
-    h1 { text-align: center; }
-    #top-ranks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px; }
-    .rank-card { width: 120px; height: 50px; border: 2px dashed #aaa; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 6px; background: #f9f9f9; }
-    .rank-card.filled { border-style: solid; background: #cce5ff; }
-    #candidate-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 500px; overflow-y: auto; border-top: 1px solid #ddd; padding-top: 10px; }
-    .candidate-card { padding: 6px 10px; border-radius: 6px; background: #eee; cursor: pointer; user-select: none; }
-    button { margin: 20px auto; display: block; padding: 10px 20px; font-size: 16px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranked Choice Voting</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Vote for Your Council (Rank top 14)</h1>
-  <div id="top-ranks"></div>
-  <h2>Remaining Candidates</h2>
-  <div id="candidate-list"></div>
-  <button id="submit-vote">Submit Ballot</button>
+  <header>
+    <h1>Vote for Your Council</h1>
+    <p>Drag and drop candidates into your top 14 ranks</p>
+  </header>
+
+  <main>
+    <section id="top-ranks-section">
+      <h2>Top 14 Ranks</h2>
+      <div id="top-ranks" class="rank-container"></div>
+    </section>
+
+    <section id="candidate-list-section">
+      <h2>Other Candidates</h2>
+      <div id="candidate-list" class="candidate-container"></div>
+    </section>
+
+    <button id="submit-vote">Submit Vote</button>
+  </main>
 
   <script src="vote.js"></script>
 </body>
