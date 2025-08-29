@@ -7,7 +7,7 @@ let candidates = [];
 let topRanks = Array(14).fill(null);
 let draggedName = null;
 
-// Load candidates
+// Load candidates from backend
 async function loadCandidates() {
   const res = await fetch(`${API_URL}/api/candidates`);
   candidates = await res.json();
@@ -15,7 +15,7 @@ async function loadCandidates() {
   renderTopRanks();
 }
 
-// Render top ranks
+// Render top 14 ranks
 function renderTopRanks() {
   topRanksContainer.innerHTML = "";
   topRanks.forEach((candidate, idx) => {
@@ -24,17 +24,24 @@ function renderTopRanks() {
     card.textContent = candidate ? candidate : `Rank ${idx + 1}`;
 
     // Drag events
-    card.draggable = !!candidate;
+    card.draggable = true;
     card.addEventListener("dragstart", () => { draggedName = candidate; });
     card.addEventListener("dragover", e => e.preventDefault());
     card.addEventListener("drop", () => dropToRank(idx));
+
+    // Mobile touch helper
+    card.addEventListener("touchstart", e => {
+      draggedName = candidate;
+      e.preventDefault();
+    });
+    card.addEventListener("touchend", () => dropToRank(idx));
 
     card.onclick = () => removeFromRank(idx);
     topRanksContainer.appendChild(card);
   });
 }
 
-// Render candidates list
+// Render candidate list
 function renderCandidates() {
   candidateListContainer.innerHTML = "";
   candidates.forEach(name => {
@@ -43,10 +50,16 @@ function renderCandidates() {
       card.className = "candidate-card";
       card.textContent = name;
 
-      // Drag events
       card.draggable = true;
       card.addEventListener("dragstart", () => { draggedName = name; });
       card.addEventListener("dragover", e => e.preventDefault());
+
+      // Mobile touch helper
+      card.addEventListener("touchstart", e => {
+        draggedName = name;
+        e.preventDefault();
+      });
+      card.addEventListener("touchend", () => assignToRank(name));
 
       card.onclick = () => assignToRank(name);
       candidateListContainer.appendChild(card);
@@ -54,11 +67,20 @@ function renderCandidates() {
   });
 }
 
-// Drop a dragged name into a rank
+// Drop a dragged name into a rank (with replacement)
 function dropToRank(idx) {
   if (!draggedName) return;
-  const currentIdx = topRanks.indexOf(draggedName);
-  if (currentIdx !== -1) topRanks[currentIdx] = null; // remove from previous rank
+  const existing = topRanks[idx];
+  const prevIdx = topRanks.indexOf(draggedName);
+
+  // Remove dragged from previous rank
+  if (prevIdx !== -1) topRanks[prevIdx] = null;
+
+  // If a candidate already exists in target, move it back to list
+  if (existing && existing !== draggedName) {
+    // Nothing to do, it will automatically appear in candidate list
+  }
+
   topRanks[idx] = draggedName;
   draggedName = null;
   renderTopRanks();
