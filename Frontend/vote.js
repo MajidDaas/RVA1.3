@@ -1,9 +1,11 @@
-const API_URL = "https://ranked-voting-app.onrender.com";
+const API_URL = "https://ranked-voting-app.onrender.com"; // your backend URL
+
 const topRanksContainer = document.getElementById("top-ranks");
 const candidateListContainer = document.getElementById("candidate-list");
-const numRanks = 14;
+const submitBtn = document.getElementById("submitVote");
 
-let candidates = []; // populate from backend
+const numRanks = 14;
+let candidates = [];
 let topRanks = new Array(numRanks).fill(null);
 
 let draggedName = null;
@@ -13,9 +15,8 @@ let draggingElem = null;
 let touchOffsetX = 0;
 let touchOffsetY = 0;
 
-// -------------------- RENDER UI --------------------
+// -------------------- RENDER --------------------
 function renderUI() {
-  // Render top ranks
   topRanksContainer.innerHTML = "";
   topRanks.forEach((name, idx) => {
     const card = document.createElement("div");
@@ -23,39 +24,34 @@ function renderUI() {
     card.textContent = name || `Rank ${idx + 1}`;
     card.dataset.idx = idx;
 
-    // Desktop drag
     card.setAttribute("draggable", true);
     card.addEventListener("dragstart", e => handleDragStart(e, idx, null));
     card.addEventListener("dragover", e => e.preventDefault());
     card.addEventListener("drop", e => handleDrop(e, idx, null));
 
-    // Mobile drag
     card.addEventListener("touchstart", e => handleTouchStart(e, card, idx, null));
 
     topRanksContainer.appendChild(card);
   });
 
-  // Render candidates
   candidateListContainer.innerHTML = "";
   candidates.forEach((name, idx) => {
     const card = document.createElement("div");
     card.className = "candidate-card";
     card.textContent = name;
 
-    // Desktop drag
     card.setAttribute("draggable", true);
     card.addEventListener("dragstart", e => handleDragStart(e, null, idx));
     card.addEventListener("dragover", e => e.preventDefault());
     card.addEventListener("drop", e => handleDrop(e, null, idx));
 
-    // Mobile drag
     card.addEventListener("touchstart", e => handleTouchStart(e, card, null, name));
 
     candidateListContainer.appendChild(card);
   });
 }
 
-// -------------------- DESKTOP DRAG & DROP --------------------
+// -------------------- DESKTOP DRAG --------------------
 function handleDragStart(e, rankIdx, candidateIdx) {
   if (rankIdx !== null) {
     draggedName = topRanks[rankIdx];
@@ -71,18 +67,15 @@ function handleDragStart(e, rankIdx, candidateIdx) {
 function handleDrop(e, rankIdx, candidateIdx) {
   e.preventDefault();
   if (draggedFrom === "list" && rankIdx !== null) {
-    // Place candidate in rank
     const temp = topRanks[rankIdx];
     topRanks[rankIdx] = draggedName;
     if (temp) candidates.push(temp);
     candidates.splice(draggedFromIdx, 1);
   } else if (draggedFrom === "rank" && rankIdx !== null) {
-    // Swap ranks
     const temp = topRanks[rankIdx];
     topRanks[rankIdx] = draggedName;
     topRanks[draggedFromIdx] = temp;
   } else if (draggedFrom === "rank" && candidateIdx !== null) {
-    // Move back to candidate list
     candidates.push(draggedName);
     topRanks[draggedFromIdx] = null;
   }
@@ -139,15 +132,11 @@ function handleTouchEnd(e) {
       const idx = parseInt(targetElem.dataset.idx);
       const temp = topRanks[idx];
       topRanks[idx] = draggedName;
-      if (draggedFrom === "rank") {
-        topRanks[draggedFromIdx] = temp;
-      } else {
-        // from candidate list
-        candidates.splice(draggedFromIdx, 1);
-        if (temp) candidates.push(temp);
-      }
+      if (draggedFrom === "rank") topRanks[draggedFromIdx] = temp;
+      else candidates.splice(draggedFromIdx, 1);
+      if (temp && draggedFrom === "list") candidates.push(temp);
     } else if (draggedFrom === "rank") {
-      // tap-to-remove: return to candidate list
+      // tap-to-remove
       candidates.push(draggedName);
       topRanks[draggedFromIdx] = null;
     }
@@ -165,11 +154,33 @@ function handleTouchEnd(e) {
   renderUI();
 }
 
-// -------------------- INITIAL LOAD --------------------
+// -------------------- SUBMIT VOTE --------------------
+submitBtn.addEventListener("click", async () => {
+  if (topRanks.includes(null)) return alert("Please rank all 14 candidates!");
+  const ballot = topRanks.slice();
+  const linkID = new URLSearchParams(window.location.search).get("link");
+  if (!linkID) return alert("Missing voting link");
+
+  const res = await fetch(`${API_URL}/api/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ballot, linkID })
+  });
+  const data = await res.json();
+  alert(data.message || data.error);
+});
+
+// -------------------- LOAD CANDIDATES --------------------
 async function loadCandidates() {
-  const res = await fetch("/api/candidates"); // adjust to your backend
-  candidates = await res.json();
-  renderUI();
+  try {
+    const res = await fetch(`${API_URL}/api/candidates`);
+    if (!res.ok) throw new Error("Failed to load candidates");
+    candidates = await res.json();
+    renderUI();
+  } catch (err) {
+    console.error(err);
+    alert("Could not load candidates from server");
+  }
 }
 
 loadCandidates();
