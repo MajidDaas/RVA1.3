@@ -1,89 +1,68 @@
-const backendURL = "https://ranked-voting-app.onrender.com";
-const numRanks = 14;
+const API_URL = "https://ranked-voting-app.onrender.com"; // backend URL
+const topRanksContainer = document.getElementById("top-ranks");
+const candidateListContainer = document.getElementById("candidate-list");
+const submitBtn = document.getElementById("submit-vote");
+
 let candidates = [];
+let topRanks = Array(14).fill(null); // 14 ranks
 
-// Read link from URL
-const urlParams = new URLSearchParams(window.location.search);
-const linkID = urlParams.get("link");
-if (!linkID) {
-  alert("No voting link provided.");
-  document.body.innerHTML = "<h2>Invalid voting link</h2>";
-}
-
-// Load candidates
+// Load candidates from backend
 async function loadCandidates() {
-  const res = await fetch(`${backendURL}/api/candidates`);
+  const res = await fetch(`${API_URL}/api/candidates`);
   candidates = await res.json();
-
-  const list = document.getElementById("candidate-list");
-  list.innerHTML = "";
-  candidates.forEach(c => {
-    const li = document.createElement("li");
-    li.textContent = c;
-    li.draggable = true;
-    li.tabIndex = 0;
-    list.appendChild(li);
-  });
-
-  enableDragAndDrop(list);
+  renderCandidates();
+  renderTopRanks();
 }
 
-// Drag + touch + keyboard
-function enableDragAndDrop(list) {
-  let dragged;
+// Render top 14 rank slots
+function renderTopRanks() {
+  topRanksContainer.innerHTML = "";
+  topRanks.forEach((candidate, idx) => {
+    const card = document.createElement("div");
+    card.className = "rank-card" + (candidate ? " filled" : "");
+    card.textContent = candidate ? candidate : `Rank ${idx + 1}`;
+    card.onclick = () => removeFromRank(idx);
+    topRanksContainer.appendChild(card);
+  });
+}
 
-  // Desktop drag
-  list.addEventListener("dragstart", e => dragged = e.target);
-  list.addEventListener("dragover", e => e.preventDefault());
-  list.addEventListener("drop", e => {
-    e.preventDefault();
-    if (e.target.tagName === "LI" && e.target !== dragged) {
-      list.insertBefore(dragged, e.target.nextSibling);
+// Render candidates list
+function renderCandidates() {
+  candidateListContainer.innerHTML = "";
+  candidates.forEach(name => {
+    if (!topRanks.includes(name)) {
+      const card = document.createElement("div");
+      card.className = "candidate-card";
+      card.textContent = name;
+      card.onclick = () => assignToRank(name);
+      candidateListContainer.appendChild(card);
     }
   });
+}
 
-  // Mobile touch
-  list.addEventListener("touchstart", e => dragged = e.target);
-  list.addEventListener("touchmove", e => e.preventDefault());
-  list.addEventListener("touchend", e => {
-    const touch = e.changedTouches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.tagName === "LI" && target !== dragged) {
-      list.insertBefore(dragged, target.nextSibling);
-    }
-  });
+// Assign candidate to first empty rank
+function assignToRank(name) {
+  const firstEmpty = topRanks.findIndex(c => c === null);
+  if (firstEmpty === -1) return alert("All 14 ranks filled!");
+  topRanks[firstEmpty] = name;
+  renderTopRanks();
+  renderCandidates();
+}
 
-  // Keyboard
-  list.addEventListener("keydown", e => {
-    const li = e.target;
-    if (li.tagName !== "LI") return;
-    if (e.key === "ArrowUp" && li.previousElementSibling) {
-      li.parentNode.insertBefore(li, li.previousElementSibling);
-    }
-    if (e.key === "ArrowDown" && li.nextElementSibling) {
-      li.parentNode.insertBefore(li.nextElementSibling, li);
-    }
-  });
+// Remove candidate from rank
+function removeFromRank(idx) {
+  if (!topRanks[idx]) return;
+  topRanks[idx] = null;
+  renderTopRanks();
+  renderCandidates();
 }
 
 // Submit vote
-document.getElementById("submitVote").addEventListener("click", async () => {
-  const listItems = [...document.querySelectorAll("#candidate-list li")];
-  const ballot = listItems.slice(0, numRanks).map(li => li.textContent);
-
-  if (ballot.includes("") || new Set(ballot).size !== numRanks) {
-    return alert(`Please rank all ${numRanks} candidates with no duplicates.`);
-  }
-
-  const res = await fetch(`${backendURL}/api/vote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ballot, linkID })
-  });
-
-  const data = await res.json();
-  alert(data.message || data.error);
-});
+submitBtn.onclick = async () => {
+  if (topRanks.includes(null)) return alert("Please rank all 14 candidates!");
+  // Here you would send ballot to backend
+  console.log("Ballot:", topRanks);
+  alert("Ballot submitted (demo). Check console for details.");
+};
 
 loadCandidates();
-
