@@ -1,114 +1,185 @@
-const API_URL = "https://ranked-voting-app.onrender.com"; // backend URL
-const form = document.getElementById("votingForm");
-const container = document.getElementById("rankingContainer");
-const numRanks = 14;
+const API_URL = "https://ranked-voting-app.onrender.com";
+const topRanksContainer = document.getElementById("top-ranks");
+const candidateListContainer = document.getElementById("candidate-list");
+const submitBtn = document.getElementById("submit-vote");
 
 let candidates = [];
+let topRanks = Array(14).fill(null);
+let draggedName = null;
+let draggedFrom = null;
+let draggingElem = null;
+let touchOffsetX = 0, touchOffsetY = 0;
 
-// Read single-use link from URL (optional, can skip if not needed)
-// const urlParams = new URLSearchParams(window.location.search);
-// const linkID = urlParams.get("link");
-
-// Load candidates and create dropdowns/cards
 async function loadCandidates() {
-  try {
-    const res = await fetch(`${API_URL}/api/candidates`);
-    candidates = await res.json();
-    renderCards();
-  } catch (err) {
-    console.error("Failed to load candidates:", err);
-  }
+  const res = await fetch(`${API_URL}/api/candidates`);
+  candidates = await res.json();
+  renderCandidates();
+  renderTopRanks();
 }
 
-function renderCards() {
-  container.innerHTML = "";
-  const candidateContainer = document.getElementById("candidate-list");
-  candidateContainer.innerHTML = "";
+function renderTopRanks() {
+  topRanksContainer.innerHTML = "";
+  topRanks.forEach((candidate, idx) => {
+    const card = document.createElement("div");
+    card.className = "rank-card" + (candidate ? " filled" : "");
+    card.textContent = candidate || `Rank ${idx + 1}`;
 
-  // Initialize ranked array
-  const ranked = Array(numRanks).fill(null);
+    // Desktop drag
+    card.draggable = !!candidate;
+    card.addEventListener("dragstart", e => {
+      draggedName = candidate;
+      draggedFrom = "rank";
+    });
+    card.addEventListener("dragover", e => e.preventDefault());
+    card.addEventListener("drop", () => dropToRank(idx));
 
-  // Create ranked slots
-  for (let i = 0; i < numRanks; i++) {
-    const slot = document.createElement("div");
-    slot.className = "rank-card";
-    slot.textContent = `Rank ${i + 1}`;
-    slot.dataset.index = i;
+    // Mobile touch
+    card.addEventListener("touchstart", e => {
+      if (!candidate) return;
+      draggedName = candidate;
+      draggedFrom = "rank";
+      draggingElem = card.cloneNode(true);
+      draggingElem.style.position = "absolute";
+      draggingElem.style.pointerEvents = "none";
+      draggingElem.style.zIndex = "1000";
+      document.body.appendChild(draggingElem);
 
-    // Click to remove
-    slot.addEventListener("click", () => {
-      if (ranked[i]) {
-        ranked[i] = null;
-        slot.textContent = `Rank ${i + 1}`;
-        renderCandidatePool();
-      }
+      const touch = e.touches[0];
+      touchOffsetX = touch.clientX - card.getBoundingClientRect().left;
+      touchOffsetY = touch.clientY - card.getBoundingClientRect().top;
+      moveDraggingElem(touch);
     });
 
-    // Drag-over/drop
-    slot.addEventListener("dragover", e => e.preventDefault());
-    slot.addEventListener("drop", e => {
+    card.addEventListener("touchmove", e => {
+      if (!draggingElem) return;
       e.preventDefault();
-      const draggedName = e.dataTransfer.getData("text/plain");
-      if (!draggedName) return;
+      moveDraggingElem(e.touches[0]);
+    }, { passive: false });
 
-      const prev = ranked[i];
-      ranked[i] = draggedName;
-      slot.textContent = draggedName;
-      renderCandidatePool();
+    card.addEventListener("touchend", e => {
+      if (!draggingElem) return;
+      const touch = e.changedTouches[0];
+      const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+      const rankCards = Array.from(topRanksContainer.children);
+      const rankIdx = rankCards.indexOf(dropTarget.closest(".rank-card"));
 
-      if (prev) {
-        // Return previous to candidate pool
-        renderCandidatePool();
+      if (rankIdx !== -1) {
+        dropToRank(rankIdx);
       }
+      draggingElem.remove();
+      draggedName = null;
+      draggedFrom = null;
+      draggingElem = null;
     });
 
-    container.appendChild(slot);
-  }
+    topRanksContainer.appendChild(card);
+  });
+}
 
-  // Candidate pool
-  function renderCandidatePool() {
-    candidateContainer.innerHTML = "";
-    candidates.forEach(name => {
-      if (!ranked.includes(name)) {
-        const card = document.createElement("div");
-        card.className = "candidate-card";
-        card.textContent = name;
-        card.setAttribute("draggable", "true");
+function renderCandidates() {
+  candidateListContainer.innerHTML = "";
+  candidates.forEach(name => {
+    if (!topRanks.includes(name)) {
+      const card = document.createElement("div");
+      card.className = "candidate-card";
+      card.textContent = name;
 
-        card.addEventListener("dragstart", e => {
-          e.dataTransfer.setData("text/plain", name);
-          card.classList.add("dragging");
-        });
-
-        card.addEventListener("dragend", () => {
-          card.classList.remove("dragging");
-        });
-
-        candidateContainer.appendChild(card);
-      }
-    });
-  }
-
-  renderCandidatePool();
-
-  // Submit
-  form.addEventListener("submit", async e => {
-    e.preventDefault();
-    if (ranked.includes(null)) return alert("Fill all 14 ranks!");
-
-    try {
-      const res = await fetch(`${API_URL}/api/vote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ballot: ranked })
+      // Desktop drag
+      card.draggable = true;
+      card.addEventListener("dragstart", e => {
+        draggedName = name;
+        draggedFrom = "list";
       });
-      const data = await res.json();
-      alert(data.message || data.error);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to submit vote");
+
+      // Mobile touch
+      card.addEventListener("touchstart", e => {
+        draggedName = name;
+        draggedFrom = "list";
+        draggingElem = card.cloneNode(true);
+        draggingElem.style.position = "absolute";
+        draggingElem.style.pointerEvents = "none";
+        draggingElem.style.zIndex = "1000";
+        document.body.appendChild(draggingElem);
+
+        const touch = e.touches[0];
+        touchOffsetX = touch.clientX - card.getBoundingClientRect().left;
+        touchOffsetY = touch.clientY - card.getBoundingClientRect().top;
+        moveDraggingElem(touch);
+      });
+
+      card.addEventListener("touchmove", e => {
+        if (!draggingElem) return;
+        e.preventDefault();
+        moveDraggingElem(e.touches[0]);
+      }, { passive: false });
+
+      card.addEventListener("touchend", e => {
+        if (!draggingElem) return;
+        const touch = e.changedTouches[0];
+        const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+        const rankCards = Array.from(topRanksContainer.children);
+        const rankIdx = rankCards.indexOf(dropTarget.closest(".rank-card"));
+
+        if (rankIdx !== -1) {
+          dropToRank(rankIdx);
+        }
+        draggingElem.remove();
+        draggedName = null;
+        draggedFrom = null;
+        draggingElem = null;
+      });
+
+      card.onclick = () => assignToFirstEmpty(name);
+      candidateListContainer.appendChild(card);
     }
   });
 }
+
+// Move dragging element
+function moveDraggingElem(touch) {
+  draggingElem.style.left = touch.clientX - touchOffsetX + "px";
+  draggingElem.style.top = touch.clientY - touchOffsetY + "px";
+}
+
+// Drop logic with swap
+function dropToRank(idx) {
+  if (!draggedName) return;
+  const existing = topRanks[idx];
+  const prevIdx = topRanks.indexOf(draggedName);
+
+  if (draggedFrom === "rank" && prevIdx !== -1) topRanks[prevIdx] = null;
+
+  if (existing && existing !== draggedName && draggedFrom === "rank") {
+    topRanks[prevIdx] = existing;
+  }
+
+  topRanks[idx] = draggedName;
+  renderTopRanks();
+  renderCandidates();
+}
+
+function assignToFirstEmpty(name = draggedName) {
+  if (!name) return;
+  const firstEmpty = topRanks.findIndex(c => c === null);
+  if (firstEmpty === -1) return alert("All 14 ranks filled!");
+  topRanks[firstEmpty] = name;
+  renderTopRanks();
+  renderCandidates();
+}
+
+submitBtn.onclick = async () => {
+  if (topRanks.includes(null)) return alert("Please rank all 14 candidates!");
+  try {
+    const res = await fetch(`${API_URL}/api/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ballot: topRanks, linkID: null }) // replace with actual link logic
+    });
+    const data = await res.json();
+    alert(data.message || data.error);
+  } catch (err) {
+    alert("Failed to submit vote: " + err.message);
+  }
+};
 
 loadCandidates();
