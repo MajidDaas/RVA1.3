@@ -1,62 +1,78 @@
 body {
-  font-family: Arial, sans-serif;
-  max-width: 720px;
-  margin: 20px auto;
-  padding: 10px;
-  background: #f9f9f9;
-  color: #333;
-}
-
-h1, h2 {
-  text-align: center;
-}
-
-.draggable-list {
-  list-style: none;
+  font-family: 'Arial', sans-serif;
+  margin: 0;
   padding: 0;
-  margin: 20px 0;
+  background: #f0f4f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.draggable-list li {
-  padding: 12px;
-  margin: 4px 0;
+header {
+  text-align: center;
+  padding: 20px;
+  background: #4a90e2;
+  color: #fff;
+  width: 100%;
+}
+
+h1 { margin: 0; }
+h2 { margin-top: 20px; margin-bottom: 10px; color: #333; }
+
+main {
+  width: 95%;
+  max-width: 900px;
+  margin-top: 20px;
+}
+
+.rank-container, .candidate-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 80px;
+  margin-bottom: 20px;
+}
+
+.rank-card, .candidate-card {
   background: #fff;
-  border: 1px solid #ccc;
   border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 80px;
+  text-align: center;
   cursor: grab;
+  user-select: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
-.draggable-list li:focus {
-  outline: 2px solid #3b82f6;
+.rank-card.filled { background: #d6eaff; }
+
+.rank-card:active, .candidate-card:active {
+  transform: scale(1.05);
+  box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+  cursor: grabbing;
 }
 
-button {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
+button#submit-vote {
+  padding: 12px 25px;
   font-size: 16px;
-  background: #3b82f6;
+  background: #4a90e2;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  display: block;
+  margin: 20px auto;
 }
 
-button:hover {
-  background: #2563eb;
+button#submit-vote:hover {
+  background: #357ab8;
 }
 
-#admin-panel button {
-  margin: 10px;
+@media (max-width: 600px) {
+  .rank-card, .candidate-card {
+    min-width: 70px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
 }
-
-#output {
-  margin-top: 20px;
-  white-space: pre-wrap;
-  background: #e5e7eb;
-  padding: 10px;
-  border-radius: 6px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
