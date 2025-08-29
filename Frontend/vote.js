@@ -7,7 +7,7 @@ let candidates = [];
 let topRanks = Array(14).fill(null);
 let draggedName = null;
 
-// Load candidates from backend
+// Load candidates
 async function loadCandidates() {
   const res = await fetch(`${API_URL}/api/candidates`);
   candidates = await res.json();
@@ -15,7 +15,7 @@ async function loadCandidates() {
   renderTopRanks();
 }
 
-// Render top 14 ranks
+// Render top ranks
 function renderTopRanks() {
   topRanksContainer.innerHTML = "";
   topRanks.forEach((candidate, idx) => {
@@ -23,17 +23,14 @@ function renderTopRanks() {
     card.className = "rank-card" + (candidate ? " filled" : "");
     card.textContent = candidate ? candidate : `Rank ${idx + 1}`;
 
-    // Drag events
-    card.draggable = true;
+    // Desktop drag events
+    card.draggable = !!candidate;
     card.addEventListener("dragstart", () => { draggedName = candidate; });
     card.addEventListener("dragover", e => e.preventDefault());
     card.addEventListener("drop", () => dropToRank(idx));
 
-    // Mobile touch helper
-    card.addEventListener("touchstart", e => {
-      draggedName = candidate;
-      e.preventDefault();
-    });
+    // Mobile touch helpers
+    card.addEventListener("touchstart", e => { draggedName = candidate; e.preventDefault(); });
     card.addEventListener("touchend", () => dropToRank(idx));
 
     card.onclick = () => removeFromRank(idx);
@@ -55,10 +52,7 @@ function renderCandidates() {
       card.addEventListener("dragover", e => e.preventDefault());
 
       // Mobile touch helper
-      card.addEventListener("touchstart", e => {
-        draggedName = name;
-        e.preventDefault();
-      });
+      card.addEventListener("touchstart", e => { draggedName = name; e.preventDefault(); });
       card.addEventListener("touchend", () => assignToRank(name));
 
       card.onclick = () => assignToRank(name);
@@ -67,22 +61,29 @@ function renderCandidates() {
   });
 }
 
-// Drop a dragged name into a rank (with replacement)
+// Drop dragged name into rank (with swap if necessary)
 function dropToRank(idx) {
   if (!draggedName) return;
+
   const existing = topRanks[idx];
   const prevIdx = topRanks.indexOf(draggedName);
 
-  // Remove dragged from previous rank
+  // If dragged from a rank, remove from previous
   if (prevIdx !== -1) topRanks[prevIdx] = null;
 
-  // If a candidate already exists in target, move it back to list
+  // If target rank has a different candidate, swap
   if (existing && existing !== draggedName) {
-    // Nothing to do, it will automatically appear in candidate list
+    if (prevIdx !== -1) {
+      // Swap: put existing candidate into prevIdx
+      topRanks[prevIdx] = existing;
+    } else {
+      // If dragged from candidate list, existing candidate goes back to list automatically
+    }
   }
 
   topRanks[idx] = draggedName;
   draggedName = null;
+
   renderTopRanks();
   renderCandidates();
 }
