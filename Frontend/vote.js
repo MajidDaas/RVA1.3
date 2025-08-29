@@ -1,4 +1,4 @@
-const API_URL = "https://ranked-voting-app.onrender.com"; 
+const API_URL = "https://ranked-voting-app.onrender.com";
 const topRanksContainer = document.getElementById("top-ranks");
 const candidateListContainer = document.getElementById("candidate-list");
 const submitBtn = document.getElementById("submit-vote");
@@ -6,6 +6,7 @@ const submitBtn = document.getElementById("submit-vote");
 let candidates = [];
 let topRanks = Array(14).fill(null);
 let draggedName = null;
+let draggedFrom = null; // 'rank' or 'list'
 
 // Load candidates
 async function loadCandidates() {
@@ -25,15 +26,23 @@ function renderTopRanks() {
 
     // Desktop drag events
     card.draggable = !!candidate;
-    card.addEventListener("dragstart", () => { draggedName = candidate; });
+    card.addEventListener("dragstart", () => {
+      draggedName = candidate;
+      draggedFrom = "rank";
+    });
     card.addEventListener("dragover", e => e.preventDefault());
     card.addEventListener("drop", () => dropToRank(idx));
 
-    // Mobile touch helpers
-    card.addEventListener("touchstart", e => { draggedName = candidate; e.preventDefault(); });
+    // Mobile touch events
+    card.addEventListener("touchstart", e => {
+      draggedName = candidate;
+      draggedFrom = "rank";
+      e.preventDefault();
+    });
     card.addEventListener("touchend", () => dropToRank(idx));
 
     card.onclick = () => removeFromRank(idx);
+
     topRanksContainer.appendChild(card);
   });
 }
@@ -47,52 +56,64 @@ function renderCandidates() {
       card.className = "candidate-card";
       card.textContent = name;
 
+      // Desktop drag
       card.draggable = true;
-      card.addEventListener("dragstart", () => { draggedName = name; });
+      card.addEventListener("dragstart", () => {
+        draggedName = name;
+        draggedFrom = "list";
+      });
+
       card.addEventListener("dragover", e => e.preventDefault());
 
-      // Mobile touch helper
-      card.addEventListener("touchstart", e => { draggedName = name; e.preventDefault(); });
-      card.addEventListener("touchend", () => assignToRank(name));
+      // Mobile touch
+      card.addEventListener("touchstart", e => {
+        draggedName = name;
+        draggedFrom = "list";
+        e.preventDefault();
+      });
+      card.addEventListener("touchend", () => assignToFirstEmpty());
 
-      card.onclick = () => assignToRank(name);
+      card.onclick = () => assignToFirstEmpty(name);
       candidateListContainer.appendChild(card);
     }
   });
 }
 
-// Drop dragged name into rank (with swap if necessary)
+// Drop logic with swap
 function dropToRank(idx) {
   if (!draggedName) return;
 
   const existing = topRanks[idx];
   const prevIdx = topRanks.indexOf(draggedName);
 
-  // If dragged from a rank, remove from previous
-  if (prevIdx !== -1) topRanks[prevIdx] = null;
+  // Remove dragged candidate from previous rank if any
+  if (draggedFrom === "rank" && prevIdx !== -1) {
+    topRanks[prevIdx] = null;
+  }
 
-  // If target rank has a different candidate, swap
+  // Swap if target rank has a different candidate
   if (existing && existing !== draggedName) {
-    if (prevIdx !== -1) {
-      // Swap: put existing candidate into prevIdx
+    if (draggedFrom === "rank") {
       topRanks[prevIdx] = existing;
-    } else {
-      // If dragged from candidate list, existing candidate goes back to list automatically
     }
   }
 
   topRanks[idx] = draggedName;
   draggedName = null;
+  draggedFrom = null;
 
   renderTopRanks();
   renderCandidates();
 }
 
-// Assign candidate to first empty rank
-function assignToRank(name) {
+// Assign to first empty rank
+function assignToFirstEmpty(name = draggedName) {
+  if (!name) return;
   const firstEmpty = topRanks.findIndex(c => c === null);
   if (firstEmpty === -1) return alert("All 14 ranks filled!");
   topRanks[firstEmpty] = name;
+  draggedName = null;
+  draggedFrom = null;
   renderTopRanks();
   renderCandidates();
 }
