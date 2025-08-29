@@ -10,6 +10,12 @@ let draggedFrom = null;
 let draggingElem = null;
 let touchOffsetX = 0, touchOffsetY = 0;
 
+// Get token from URL query parameter
+function getVotingToken() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("token"); 
+}
+
 async function loadCandidates() {
   const res = await fetch(`${API_URL}/api/candidates`);
   candidates = await res.json();
@@ -170,11 +176,15 @@ function assignToFirstEmpty(name = draggedName) {
 submitBtn.onclick = async () => {
   if (topRanks.includes(null)) return alert("Please rank all 14 candidates!");
   try {
+    const token = getVotingToken();
+    if (!token) return alert("Missing voting token!");
+
     const res = await fetch(`${API_URL}/api/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ballot: topRanks, linkID: null }) // replace with actual link logic
+      body: JSON.stringify({ ballot: topRanks, linkID: token })
     });
+
     const data = await res.json();
     alert(data.message || data.error);
   } catch (err) {
