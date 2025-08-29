@@ -1,0 +1,62 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 720px;
+  margin: 20px auto;
+  padding: 10px;
+  background: #f9f9f9;
+  color: #333;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.draggable-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.draggable-list li {
+  padding: 12px;
+  margin: 4px 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: grab;
+}
+
+.draggable-list li:focus {
+  outline: 2px solid #3b82f6;
+}
+
+button {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2563eb;
+}
+
+#admin-panel button {
+  margin: 10px;
+}
+
+#output {
+  margin-top: 20px;
+  white-space: pre-wrap;
+  background: #e5e7eb;
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
