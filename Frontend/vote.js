@@ -7,8 +7,8 @@ let candidates = [];
 let topRanks = Array(14).fill(null);
 let draggedName = null;
 let draggedFrom = null;
-let touchStartX = 0, touchStartY = 0;
-const TAP_THRESHOLD = 10; // pixels
+let draggingElem = null;
+let touchOffsetX = 0, touchOffsetY = 0;
 
 async function loadCandidates() {
   const res = await fetch(`${API_URL}/api/candidates`);
@@ -17,17 +17,16 @@ async function loadCandidates() {
   renderTopRanks();
 }
 
-// Render top ranks
 function renderTopRanks() {
   topRanksContainer.innerHTML = "";
   topRanks.forEach((candidate, idx) => {
     const card = document.createElement("div");
     card.className = "rank-card" + (candidate ? " filled" : "");
-    card.textContent = candidate ? candidate : `Rank ${idx + 1}`;
-    card.draggable = !!candidate;
+    card.textContent = candidate || `Rank ${idx + 1}`;
 
     // Desktop drag
-    card.addEventListener("dragstart", () => {
+    card.draggable = !!candidate;
+    card.addEventListener("dragstart", e => {
       draggedName = candidate;
       draggedFrom = "rank";
     });
@@ -37,38 +36,46 @@ function renderTopRanks() {
     // Mobile touch
     card.addEventListener("touchstart", e => {
       if (!candidate) return;
-      const touch = e.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
       draggedName = candidate;
       draggedFrom = "rank";
+      draggingElem = card.cloneNode(true);
+      draggingElem.style.position = "absolute";
+      draggingElem.style.pointerEvents = "none";
+      draggingElem.style.zIndex = "1000";
+      document.body.appendChild(draggingElem);
+
+      const touch = e.touches[0];
+      touchOffsetX = touch.clientX - card.getBoundingClientRect().left;
+      touchOffsetY = touch.clientY - card.getBoundingClientRect().top;
+      moveDraggingElem(touch);
     });
 
     card.addEventListener("touchmove", e => {
-      // Prevent scrolling during drag
+      if (!draggingElem) return;
       e.preventDefault();
+      moveDraggingElem(e.touches[0]);
     }, { passive: false });
 
     card.addEventListener("touchend", e => {
+      if (!draggingElem) return;
       const touch = e.changedTouches[0];
-      const dx = Math.abs(touch.clientX - touchStartX);
-      const dy = Math.abs(touch.clientY - touchStartY);
-      if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD) {
-        // Tap = remove
-        removeFromRank(idx);
-      } else {
-        // Drag ended on this card = swap
-        dropToRank(idx);
+      const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+      const rankCards = Array.from(topRanksContainer.children);
+      const rankIdx = rankCards.indexOf(dropTarget.closest(".rank-card"));
+
+      if (rankIdx !== -1) {
+        dropToRank(rankIdx);
       }
+      draggingElem.remove();
       draggedName = null;
       draggedFrom = null;
+      draggingElem = null;
     });
 
     topRanksContainer.appendChild(card);
   });
 }
 
-// Render candidate list
 function renderCandidates() {
   candidateListContainer.innerHTML = "";
   candidates.forEach(name => {
@@ -77,34 +84,49 @@ function renderCandidates() {
       card.className = "candidate-card";
       card.textContent = name;
 
+      // Desktop drag
       card.draggable = true;
-      card.addEventListener("dragstart", () => {
+      card.addEventListener("dragstart", e => {
         draggedName = name;
         draggedFrom = "list";
       });
 
       // Mobile touch
       card.addEventListener("touchstart", e => {
-        const touch = e.touches[0];
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
         draggedName = name;
         draggedFrom = "list";
+        draggingElem = card.cloneNode(true);
+        draggingElem.style.position = "absolute";
+        draggingElem.style.pointerEvents = "none";
+        draggingElem.style.zIndex = "1000";
+        document.body.appendChild(draggingElem);
+
+        const touch = e.touches[0];
+        touchOffsetX = touch.clientX - card.getBoundingClientRect().left;
+        touchOffsetY = touch.clientY - card.getBoundingClientRect().top;
+        moveDraggingElem(touch);
       });
 
-      card.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+      card.addEventListener("touchmove", e => {
+        if (!draggingElem) return;
+        e.preventDefault();
+        moveDraggingElem(e.touches[0]);
+      }, { passive: false });
 
       card.addEventListener("touchend", e => {
+        if (!draggingElem) return;
         const touch = e.changedTouches[0];
-        const dx = Math.abs(touch.clientX - touchStartX);
-        const dy = Math.abs(touch.clientY - touchStartY);
-        if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD) {
-          assignToFirstEmpty(name);
-        } else {
-          assignToFirstEmpty(name); // drop gesture
+        const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+        const rankCards = Array.from(topRanksContainer.children);
+        const rankIdx = rankCards.indexOf(dropTarget.closest(".rank-card"));
+
+        if (rankIdx !== -1) {
+          dropToRank(rankIdx);
         }
+        draggingElem.remove();
         draggedName = null;
         draggedFrom = null;
+        draggingElem = null;
       });
 
       card.onclick = () => assignToFirstEmpty(name);
@@ -113,20 +135,22 @@ function renderCandidates() {
   });
 }
 
+// Move dragging element
+function moveDraggingElem(touch) {
+  draggingElem.style.left = touch.clientX - touchOffsetX + "px";
+  draggingElem.style.top = touch.clientY - touchOffsetY + "px";
+}
+
 // Drop logic with swap
 function dropToRank(idx) {
   if (!draggedName) return;
   const existing = topRanks[idx];
   const prevIdx = topRanks.indexOf(draggedName);
 
-  if (draggedFrom === "rank" && prevIdx !== -1) {
-    topRanks[prevIdx] = null;
-  }
+  if (draggedFrom === "rank" && prevIdx !== -1) topRanks[prevIdx] = null;
 
-  if (existing && existing !== draggedName) {
-    if (draggedFrom === "rank") {
-      topRanks[prevIdx] = existing;
-    }
+  if (existing && existing !== draggedName && draggedFrom === "rank") {
+    topRanks[prevIdx] = existing;
   }
 
   topRanks[idx] = draggedName;
@@ -134,7 +158,6 @@ function dropToRank(idx) {
   renderCandidates();
 }
 
-// Assign to first empty rank
 function assignToFirstEmpty(name = draggedName) {
   if (!name) return;
   const firstEmpty = topRanks.findIndex(c => c === null);
@@ -144,22 +167,13 @@ function assignToFirstEmpty(name = draggedName) {
   renderCandidates();
 }
 
-// Remove from rank
-function removeFromRank(idx) {
-  if (!topRanks[idx]) return;
-  topRanks[idx] = null;
-  renderTopRanks();
-  renderCandidates();
-}
-
-// Submit vote
 submitBtn.onclick = async () => {
   if (topRanks.includes(null)) return alert("Please rank all 14 candidates!");
   try {
     const res = await fetch(`${API_URL}/api/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ballot: topRanks, linkID: null }) // insert your link logic
+      body: JSON.stringify({ ballot: topRanks, linkID: null }) // replace with actual link logic
     });
     const data = await res.json();
     alert(data.message || data.error);
